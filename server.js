@@ -17,10 +17,10 @@ app.use(passport.initialize());
 
 const router = express.Router();
 
-// == AUTH ROUTES ==
-router.post('/signup', function (req, res) {
+// ========== AUTH ROUTES ==========
+router.post('/signup', (req, res) => {
   if (!req.body.username || !req.body.password) {
-    return res.json({ success: false, msg: 'Please include both username and password to signup.' });
+    return res.json({ success: false, msg: 'Please include both username and password.' });
   }
 
   const user = new User({
@@ -29,58 +29,52 @@ router.post('/signup', function (req, res) {
     password: req.body.password
   });
 
-  user.save(function (err) {
+  user.save(err => {
     if (err) {
       if (err.code === 11000) {
-        return res.json({ success: false, message: 'A user with that username already exists.' });
+        return res.json({ success: false, message: 'User already exists.' });
       } else {
         return res.json(err);
       }
     }
-    res.json({ success: true, msg: 'Successfully created new user.' });
+    res.json({ success: true, msg: 'User created.' });
   });
 });
 
-router.post('/signin', function (req, res) {
-  const userNew = new User({
-    username: req.body.username,
-    password: req.body.password
-  });
+router.post('/signin', (req, res) => {
+  const { username, password } = req.body;
 
-  User.findOne({ username: userNew.username })
-    .select('name username password')
-    .exec(function (err, user) {
-      if (err) res.send(err);
-      if (!user) return res.status(401).json({ success: false, msg: 'Authentication failed. User not found.' });
+  User.findOne({ username }).select('name username password').exec((err, user) => {
+    if (err) return res.send(err);
+    if (!user) return res.status(401).json({ success: false, msg: 'User not found.' });
 
-      user.comparePassword(userNew.password, function (isMatch) {
-        if (isMatch) {
-          const userToken = { id: user.id, username: user.username };
-          const token = jwt.sign(userToken, process.env.SECRET_KEY);
-          res.json({ success: true, token: 'JWT ' + token });
-        } else {
-          res.status(401).send({ success: false, msg: 'Authentication failed. Wrong password.' });
-        }
-      });
+    user.comparePassword(password, isMatch => {
+      if (isMatch) {
+        const token = jwt.sign({ id: user.id, username: user.username }, process.env.SECRET_KEY);
+        res.json({ success: true, token: 'JWT ' + token });
+      } else {
+        res.status(401).json({ success: false, msg: 'Wrong password.' });
+      }
     });
+  });
 });
 
-// === CONNECT TO DATABASE ===
+// ========== MONGO CONNECTION ==========
 mongoose.connect(process.env.DB, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
 
 mongoose.connection.once('open', () => {
-  console.log("MongoDB is fully connected");
+  console.log("✅ MongoDB connected.");
 
-  // == MOVIE ROUTES ==
+  // ========== MOVIE ROUTES ==========
   router.get('/movies', async (req, res) => {
     try {
       const db = mongoose.connection.db;
 
       if (req.query.reviews === 'true') {
-        const moviesWithReviews = await db.collection('movies').aggregate([
+        const result = await db.collection('movies').aggregate([
           {
             $lookup: {
               from: 'reviews',
@@ -90,36 +84,31 @@ mongoose.connection.once('open', () => {
             }
           }
         ]).toArray();
-        res.json(moviesWithReviews);
+
+        return res.json(result);
       } else {
         const movies = await db.collection('movies').find({}).toArray();
-        res.json(movies);
+        return res.json(movies);
       }
     } catch (err) {
       console.error("Error in GET /movies:", err);
-      res.status(500).json({
-        success: false,
-        message: "Error fetching movies",
-        error: err.message
-      });
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
   router.get('/movies/:id', async (req, res) => {
     try {
-      const db = mongoose.connection.db;
-      const idParam = req.params.id;
+      const id = req.params.id;
 
-      console.log("Requested movie ID:", idParam);
-
-      if (!mongoose.Types.ObjectId.isValid(idParam)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ success: false, message: 'Invalid movie ID format' });
       }
 
-      const movieId = new mongoose.Types.ObjectId(idParam);
+      const movieId = new mongoose.Types.ObjectId(id);
+      const db = mongoose.connection.db;
 
       if (req.query.reviews === 'true') {
-        const movieWithReviews = await db.collection('movies').aggregate([
+        const result = await db.collection('movies').aggregate([
           { $match: { _id: movieId } },
           {
             $lookup: {
@@ -131,11 +120,11 @@ mongoose.connection.once('open', () => {
           }
         ]).toArray();
 
-        if (movieWithReviews.length === 0) {
+        if (result.length === 0) {
           return res.status(404).json({ success: false, message: 'Movie not found' });
         }
 
-        return res.json(movieWithReviews[0]);
+        return res.json(result[0]);
       } else {
         const movie = await db.collection('movies').findOne({ _id: movieId });
 
@@ -147,29 +136,18 @@ mongoose.connection.once('open', () => {
       }
     } catch (err) {
       console.error("Error in GET /movies/:id:", err.message);
-      res.status(500).json({
-        success: false,
-        message: "Error fetching movie",
-        error: err.message
-      });
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
-  // == REVIEW ROUTES ==
+  // ========== REVIEW ROUTES ==========
   router.get('/reviews', async (req, res) => {
     try {
-      const reviews = await mongoose.connection.db
-        .collection('reviews')
-        .find({})
-        .toArray();
+      const reviews = await mongoose.connection.db.collection('reviews').find({}).toArray();
       res.json(reviews);
     } catch (err) {
       console.error("Error in GET /reviews:", err);
-      res.status(500).json({
-        success: false,
-        message: "Server error when fetching reviews",
-        error: err.message
-      });
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -178,39 +156,39 @@ mongoose.connection.once('open', () => {
       const { movieId, review, rating } = req.body;
 
       if (!movieId || !review || typeof rating !== 'number') {
-        return res.status(400).json({ success: false, message: "Missing required fields: movieId, review, rating" });
+        return res.status(400).json({ success: false, message: 'Missing movieId, review, or rating' });
       }
 
       const result = await mongoose.connection.db.collection('reviews').insertOne({
         movieId: new mongoose.Types.ObjectId(movieId),
         review,
-        rating
+        rating,
+        date: new Date()
       });
 
-      res.status(201).json({ success: true, message: "Review added", id: result.insertedId });
+      res.status(201).json({ success: true, message: 'Review added', id: result.insertedId });
     } catch (err) {
       console.error("Error in POST /reviews:", err);
-      res.status(500).json({
-        success: false,
-        message: "Server error when adding review",
-        error: err.message
-      });
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
-  // === START SERVER ===
+  // ✅ TEST ENDPOINT
+  router.get('/health', (req, res) => res.send("Server is up and running."));
+
+  // ✅ Start the server
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`🚀 Server is running on port ${PORT}`);
   });
 });
 
-// Mount router
+// Mount routes
 app.use('/', router);
 
-// Error logging for DB
+// Log MongoDB connection errors
 mongoose.connection.on('error', err => {
-  console.error("MongoDB connection error:", err);
+  console.error("❌ MongoDB connection error:", err);
 });
 
 
