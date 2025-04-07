@@ -97,6 +97,33 @@ mongoose.connection.once('open', () => {
     }
   });
 
+  // POST /reviews route
+  router.post('/reviews', async (req, res) => {
+    try {
+      const { movieId, review, rating } = req.body;
+
+      if (!movieId || !review || typeof rating !== 'number') {
+        return res.status(400).json({ success: false, message: "Missing required fields: movieId, review, rating" });
+      }
+
+      const db = mongoose.connection.db;
+      const result = await db.collection('reviews').insertOne({
+        movieId,
+        review,
+        rating
+      });
+
+      res.status(201).json({ success: true, message: "Review added", id: result.insertedId });
+    } catch (err) {
+      console.error("Error in POST /reviews:", err);
+      res.status(500).json({
+        success: false,
+        message: "Server error when adding review",
+        error: err.message
+      });
+    }
+  });
+
   // Start server after DB connection
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
