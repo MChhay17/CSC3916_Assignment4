@@ -145,10 +145,10 @@ mongoose.connection.once('open', () => {
     try {
       const { title, releaseDate, genre, actors, imageURL } = req.body;
 
-      if (!title || !releaseDate || !genre || !actors || actors.length < 3 || !imageURL) {
+      if (!title || !releaseDate || !genre || !actors || actors.length < 1 || !imageURL) {
         return res.status(400).json({
           success: false,
-          message: "Missing required fields or not enough actors (minimum 3)."
+          message: "Missing required fields or not enough actors (minimum 1)."
         });
       }
 
