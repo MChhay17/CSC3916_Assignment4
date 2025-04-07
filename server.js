@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const User = require('./Users');
-const Movie = require('./Movies'); // You can keep this if you plan to use Movies
+const Movie = require('./Movies');
 
 const app = express();
 
@@ -83,26 +83,28 @@ router.post('/signin', function (req, res) {
     });
 });
 
-// ✅ Reviews route — no Review.js needed!
+// ✅ GET /reviews — using raw collection access
 router.get('/reviews', async (req, res) => {
   try {
-    const reviews = await mongoose.connection.db
-      .collection('reviews')
-      .find({})
-      .toArray();
+    const db = mongoose.connection.db;
 
+    if (!db) {
+      return res.status(500).json({ success: false, message: "MongoDB not ready" });
+    }
+
+    const reviews = await db.collection('reviews').find({}).toArray();
     res.json(reviews);
   } catch (err) {
-    console.error("❌ Error in GET /reviews:", err.message);
+    console.error("❌ Error in GET /reviews:", err);
     res.status(500).json({
       success: false,
-      message: "Error fetching reviews",
+      message: "Server error when fetching reviews",
       error: err.message
     });
   }
 });
 
-// Mount router
+// Mount the router
 app.use('/', router);
 
 // Start server
