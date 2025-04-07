@@ -140,12 +140,21 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // ✅ POST /movies (NEW)
+  // ✅ POST /movies (FIXED)
   router.post('/movies', async (req, res) => {
     try {
-      const { title, releaseDate, genre, actors, imageURL } = req.body;
+      const { title, year, genre, actors, imageURL } = req.body;
 
-      if (!title || !releaseDate || !genre || !actors || actors.length < 1 || !imageURL) {
+      console.log("📥 Incoming POST /movies body:", req.body);
+
+      if (
+        !title ||
+        !year ||
+        !genre ||
+        !Array.isArray(actors) ||
+        actors.length < 1 ||
+        !imageURL
+      ) {
         return res.status(400).json({
           success: false,
           message: "Missing required fields or not enough actors (minimum 1)."
@@ -154,7 +163,7 @@ mongoose.connection.once('open', () => {
 
       const newMovie = new Movie({
         title,
-        releaseDate,
+        year,
         genre,
         actors,
         imageURL
@@ -206,8 +215,8 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // Optional: Health check route
-  router.get('/health', (req, res) => res.send("Server is running."));
+  // Optional: Health check
+  router.get('/health', (req, res) => res.send("✅ Server is running."));
 
   // Start server
   const PORT = process.env.PORT || 10000;
@@ -216,13 +225,14 @@ mongoose.connection.once('open', () => {
   });
 });
 
-// Mount router after all routes are defined
+// Mount router after routes are defined
 app.use('/', router);
 
-// Handle MongoDB connection errors
+// Mongo error logging
 mongoose.connection.on('error', err => {
   console.error("❌ MongoDB connection error:", err);
 });
+
 
 
 
