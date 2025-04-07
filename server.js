@@ -1,9 +1,3 @@
-/*
-CSC3916 HW4
-File: server.js
-Description: Web API scaffolding for Movie API
-*/
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const passport = require('passport');
@@ -13,20 +7,17 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const User = require('./Users');
-const Movie = require('./Movies'); // Optional, keep if you're using movies
+const Movie = require('./Movies');
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(passport.initialize());
 
-// Routes
 const router = express.Router();
 
-// ✅ Signup
+// Signup route
 router.post('/signup', function (req, res) {
   if (!req.body.username || !req.body.password) {
     return res.json({ success: false, msg: 'Please include both username and password to signup.' });
@@ -50,7 +41,7 @@ router.post('/signup', function (req, res) {
   });
 });
 
-// ✅ Signin
+// Signin route
 router.post('/signin', function (req, res) {
   const userNew = new User({
     username: req.body.username,
@@ -75,43 +66,44 @@ router.post('/signin', function (req, res) {
     });
 });
 
-// ✅ GET /reviews (no Reviews.js model needed)
-router.get('/reviews', async (req, res) => {
-  try {
-    const reviews = await mongoose.connection.db
-      .collection('reviews')
-      .find({})
-      .toArray();
-
-    res.json(reviews);
-  } catch (err) {
-    console.error("❌ Error in GET /reviews:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error when fetching reviews",
-      error: err.message
-    });
-  }
-});
-
-// Mount routes
+// Mount router early
 app.use('/', router);
 
-// ✅ Connect to MongoDB THEN start server
+// ✅ Wait for full connection before adding /reviews
 mongoose.connect(process.env.DB, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-})
-.then(() => {
-  console.log("✅ Connected to MongoDB");
+});
 
+mongoose.connection.once('open', () => {
+  console.log("✅ MongoDB is fully connected");
+
+  // ✅ Safe to access db.collection now
+  router.get('/reviews', async (req, res) => {
+    try {
+      const reviews = await mongoose.connection.db
+        .collection('reviews')
+        .find({})
+        .toArray();
+
+      res.json(reviews);
+    } catch (err) {
+      console.error("❌ Error in GET /reviews:", err);
+      res.status(500).json({
+        success: false,
+        message: "Server error when fetching reviews",
+        error: err.message
+      });
+    }
+  });
+
+  // ✅ Start server after connection
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
   });
-})
-.catch(err => {
-  console.error("❌ MongoDB connection error:", err);
 });
 
-module.exports = app;
+mongoose.connection.on('error', err => {
+  console.error("❌ MongoDB connection error:", err);
+});
