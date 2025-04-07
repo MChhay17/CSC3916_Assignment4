@@ -157,8 +157,17 @@ mongoose.connection.once('open', () => {
   // GET /movies/:id with optional ?reviews=true
   router.get('/movies/:id', async (req, res) => {
     try {
-      const movieId = new mongoose.Types.ObjectId(req.params.id);
       const db = mongoose.connection.db;
+      const idParam = req.params.id;
+
+      // Log the incoming movie ID for debugging
+      console.log("Requested movie ID:", idParam);
+
+      if (!mongoose.Types.ObjectId.isValid(idParam)) {
+        return res.status(400).json({ success: false, message: 'Invalid movie ID format' });
+      }
+
+      const movieId = new mongoose.Types.ObjectId(idParam);
 
       if (req.query.reviews === 'true') {
         const movieWithReviews = await db.collection('movies').aggregate([
