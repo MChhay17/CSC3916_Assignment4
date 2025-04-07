@@ -21,9 +21,9 @@ const MovieSchema = new Schema({
     required: true,
     validate: {
       validator: function (val) {
-        return val.length >= 3;
+        return val.length >= 1;
       },
-      message: 'A movie must have at least 3 actors.'
+      message: 'A movie must have at least 1 actors.'
     }
   },
   imageURL: { type: String, required: true }
