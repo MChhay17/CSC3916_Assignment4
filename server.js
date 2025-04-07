@@ -177,7 +177,7 @@ mongoose.connection.once('open', () => {
           return res.status(404).json({ success: false, message: 'Movie not found' });
         }
 
-        res.json(movieWithReviews[0]);
+        return res.json(movieWithReviews[0]);
       } else {
         const movie = await db.collection('movies').findOne({ _id: movieId });
 
@@ -185,10 +185,10 @@ mongoose.connection.once('open', () => {
           return res.status(404).json({ success: false, message: 'Movie not found' });
         }
 
-        res.json(movie);
+        return res.json(movie);
       }
     } catch (err) {
-      console.error("Error in GET /movies/:id:", err);
+      console.error("Error in GET /movies/:id:", err.message);
       res.status(500).json({
         success: false,
         message: "Error fetching movie",
@@ -208,5 +208,6 @@ mongoose.connection.once('open', () => {
 mongoose.connection.on('error', err => {
   console.error("MongoDB connection error:", err);
 });
+
 
 
