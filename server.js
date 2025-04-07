@@ -69,16 +69,16 @@ router.post('/signin', function (req, res) {
 // Mount router early
 app.use('/', router);
 
-// ✅ Wait for full connection before adding /reviews
+// Connect to MongoDB
 mongoose.connect(process.env.DB, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
 
 mongoose.connection.once('open', () => {
-  console.log("✅ MongoDB is fully connected");
+  console.log("MongoDB is fully connected");
 
-  // ✅ Safe to access db.collection now
+  // GET /reviews route
   router.get('/reviews', async (req, res) => {
     try {
       const reviews = await mongoose.connection.db
@@ -88,7 +88,7 @@ mongoose.connection.once('open', () => {
 
       res.json(reviews);
     } catch (err) {
-      console.error("❌ Error in GET /reviews:", err);
+      console.error("Error in GET /reviews:", err);
       res.status(500).json({
         success: false,
         message: "Server error when fetching reviews",
@@ -97,14 +97,16 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // ✅ Start server after connection
+  // Start server after DB connection
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
   });
 });
 
+// Handle DB connection errors
 mongoose.connection.on('error', err => {
-  console.error("❌ MongoDB connection error:", err);
+  console.error("MongoDB connection error:", err);
 });
+
 
