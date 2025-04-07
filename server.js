@@ -140,6 +140,39 @@ mongoose.connection.once('open', () => {
     }
   });
 
+  // ✅ POST /movies (NEW)
+  router.post('/movies', async (req, res) => {
+    try {
+      const { title, releaseDate, genre, actors, imageURL } = req.body;
+
+      if (!title || !releaseDate || !genre || !actors || actors.length < 3 || !imageURL) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields or not enough actors (minimum 3)."
+        });
+      }
+
+      const newMovie = new Movie({
+        title,
+        releaseDate,
+        genre,
+        actors,
+        imageURL
+      });
+
+      const savedMovie = await newMovie.save();
+      res.status(201).json({ success: true, message: "Movie added", movie: savedMovie });
+
+    } catch (err) {
+      console.error("Error in POST /movies:", err.message);
+      res.status(500).json({
+        success: false,
+        message: "Server error while adding movie",
+        error: err.message
+      });
+    }
+  });
+
   // ========== REVIEW ROUTES ==========
   router.get('/reviews', async (req, res) => {
     try {
@@ -173,22 +206,23 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // ✅ TEST ENDPOINT
-  router.get('/health', (req, res) => res.send("Server is up and running."));
+  // Optional: Health check route
+  router.get('/health', (req, res) => res.send("Server is running."));
 
-  // ✅ Start the server
+  // Start server
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
   });
 });
 
-// Mount routes
+// Mount router after all routes are defined
 app.use('/', router);
 
-// Log MongoDB connection errors
+// Handle MongoDB connection errors
 mongoose.connection.on('error', err => {
   console.error("❌ MongoDB connection error:", err);
 });
+
 
 
