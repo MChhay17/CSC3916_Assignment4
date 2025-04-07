@@ -17,7 +17,7 @@ app.use(passport.initialize());
 
 const router = express.Router();
 
-// ========== AUTH ROUTES ==========
+// AUTH ROUTES
 router.post('/signup', (req, res) => {
   if (!req.body.username || !req.body.password) {
     return res.json({ success: false, msg: 'Please include both username and password.' });
@@ -59,16 +59,16 @@ router.post('/signin', (req, res) => {
   });
 });
 
-// ========== MONGO CONNECTION ==========
+// CONNECT TO MONGO
 mongoose.connect(process.env.DB, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
 
 mongoose.connection.once('open', () => {
-  console.log("✅ MongoDB connected.");
+  console.log("MongoDB connected.");
 
-  // ========== MOVIE ROUTES ==========
+  // GET /movies
   router.get('/movies', async (req, res) => {
     try {
       const db = mongoose.connection.db;
@@ -96,20 +96,21 @@ mongoose.connection.once('open', () => {
     }
   });
 
+  // GET /movies/:id (with optional ?reviews=true)
   router.get('/movies/:id', async (req, res) => {
     try {
       const id = req.params.id;
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ success: false, message: 'Invalid movie ID format' });
-      }
-
-      const movieId = new mongoose.Types.ObjectId(id);
       const db = mongoose.connection.db;
 
       if (req.query.reviews === 'true') {
         const result = await db.collection('movies').aggregate([
-          { $match: { _id: movieId } },
+          {
+            $match: {
+              $expr: {
+                $eq: ['$_id', { $toObjectId: id }]
+              }
+            }
+          },
           {
             $lookup: {
               from: 'reviews',
@@ -126,6 +127,7 @@ mongoose.connection.once('open', () => {
 
         return res.json(result[0]);
       } else {
+        const movieId = new mongoose.Types.ObjectId(id);
         const movie = await db.collection('movies').findOne({ _id: movieId });
 
         if (!movie) {
@@ -140,12 +142,10 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // ✅ POST /movies (FIXED)
+  // POST /movies
   router.post('/movies', async (req, res) => {
     try {
       const { title, year, genre, actors, imageURL } = req.body;
-
-      console.log("📥 Incoming POST /movies body:", req.body);
 
       if (
         !title ||
@@ -182,7 +182,7 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // ========== REVIEW ROUTES ==========
+  // GET /reviews
   router.get('/reviews', async (req, res) => {
     try {
       const reviews = await mongoose.connection.db.collection('reviews').find({}).toArray();
@@ -193,6 +193,7 @@ mongoose.connection.once('open', () => {
     }
   });
 
+  // POST /reviews
   router.post('/reviews', async (req, res) => {
     try {
       const { movieId, review, rating } = req.body;
@@ -215,22 +216,22 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // Optional: Health check
-  router.get('/health', (req, res) => res.send("✅ Server is running."));
+  // Health check
+  router.get('/health', (req, res) => res.send("Server is running."));
 
-  // Start server
+  // Start the server
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
   });
 });
 
-// Mount router after routes are defined
+// Mount router
 app.use('/', router);
 
-// Mongo error logging
+// Handle MongoDB errors
 mongoose.connection.on('error', err => {
-  console.error("❌ MongoDB connection error:", err);
+  console.error("MongoDB connection error:", err);
 });
 
 
