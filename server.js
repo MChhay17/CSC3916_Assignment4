@@ -66,7 +66,7 @@ router.post('/signin', function (req, res) {
     });
 });
 
-// Mount router early
+// Mount router before DB connects
 app.use('/', router);
 
 // Connect to MongoDB
@@ -78,14 +78,13 @@ mongoose.connect(process.env.DB, {
 mongoose.connection.once('open', () => {
   console.log("MongoDB is fully connected");
 
-  // GET /reviews route
+  // GET /reviews
   router.get('/reviews', async (req, res) => {
     try {
       const reviews = await mongoose.connection.db
         .collection('reviews')
         .find({})
         .toArray();
-
       res.json(reviews);
     } catch (err) {
       console.error("Error in GET /reviews:", err);
@@ -97,7 +96,7 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // POST /reviews route
+  // POST /reviews
   router.post('/reviews', async (req, res) => {
     try {
       const { movieId, review, rating } = req.body;
@@ -106,9 +105,8 @@ mongoose.connection.once('open', () => {
         return res.status(400).json({ success: false, message: "Missing required fields: movieId, review, rating" });
       }
 
-      const db = mongoose.connection.db;
-      const result = await db.collection('reviews').insertOne({
-        movieId,
+      const result = await mongoose.connection.db.collection('reviews').insertOne({
+        movieId: new mongoose.Types.ObjectId(movieId),
         review,
         rating
       });
@@ -124,14 +122,46 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // Start server after DB connection
+  // GET /movies (with optional ?reviews=true)
+  router.get('/movies', async (req, res) => {
+    try {
+      const db = mongoose.connection.db;
+
+      if (req.query.reviews === 'true') {
+        const moviesWithReviews = await db.collection('movies').aggregate([
+          {
+            $lookup: {
+              from: 'reviews',
+              localField: '_id',
+              foreignField: 'movieId',
+              as: 'reviews'
+            }
+          }
+        ]).toArray();
+
+        res.json(moviesWithReviews);
+      } else {
+        const movies = await db.collection('movies').find({}).toArray();
+        res.json(movies);
+      }
+    } catch (err) {
+      console.error("Error in GET /movies:", err);
+      res.status(500).json({
+        success: false,
+        message: "Error fetching movies",
+        error: err.message
+      });
+    }
+  });
+
+  // Start server
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 });
 
-// Handle DB connection errors
+// Handle MongoDB connection errors
 mongoose.connection.on('error', err => {
   console.error("MongoDB connection error:", err);
 });
