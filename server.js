@@ -122,7 +122,7 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // GET /movies (with optional ?reviews=true)
+  // GET /movies with optional ?reviews=true
   router.get('/movies', async (req, res) => {
     try {
       const db = mongoose.connection.db;
@@ -154,7 +154,50 @@ mongoose.connection.once('open', () => {
     }
   });
 
-  // Start server
+  // GET /movies/:id with optional ?reviews=true
+  router.get('/movies/:id', async (req, res) => {
+    try {
+      const movieId = new mongoose.Types.ObjectId(req.params.id);
+      const db = mongoose.connection.db;
+
+      if (req.query.reviews === 'true') {
+        const movieWithReviews = await db.collection('movies').aggregate([
+          { $match: { _id: movieId } },
+          {
+            $lookup: {
+              from: 'reviews',
+              localField: '_id',
+              foreignField: 'movieId',
+              as: 'reviews'
+            }
+          }
+        ]).toArray();
+
+        if (movieWithReviews.length === 0) {
+          return res.status(404).json({ success: false, message: 'Movie not found' });
+        }
+
+        res.json(movieWithReviews[0]);
+      } else {
+        const movie = await db.collection('movies').findOne({ _id: movieId });
+
+        if (!movie) {
+          return res.status(404).json({ success: false, message: 'Movie not found' });
+        }
+
+        res.json(movie);
+      }
+    } catch (err) {
+      console.error("Error in GET /movies/:id:", err);
+      res.status(500).json({
+        success: false,
+        message: "Error fetching movie",
+        error: err.message
+      });
+    }
+  });
+
+  // Start server after DB connection
   const PORT = process.env.PORT || 10000;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
