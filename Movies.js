@@ -14,10 +14,7 @@ const MovieSchema = new Schema({
   genre: {
     type: String,
     required: true,
-    enum: [
-      'Action', 'Adventure', 'Comedy', 'Drama',
-      'Fantasy', 'Horror', 'Mystery', 'Thriller', 'Western'
-    ]
+    enum: ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Thriller', 'Western', 'Animation']
   },
   actors: {
     type: [ActorSchema],
